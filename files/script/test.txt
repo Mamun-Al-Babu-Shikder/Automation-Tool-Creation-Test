@@ -1,0 +1,37 @@
+#if (1==1):
+  print("Yes bro 1==1")
+#end_if
+
+ def_bool (_va1077          , false   )     # comment: comment
+ def_num (a      , -10.0)
+    def_str ( str ,"String Value ${_val} meter")
+# comment here.......
+def_num(num,45)
+ sum(_sf_4, +45.54 , num ) #  kjs
+div (_a, +4, -07.5)
+  mul( b, 2 , 8)
+ def_num (_b, -12.8375)
+   mod( m ,_b, 2)
+
+# sub(a,a,50)
+click("hello")
+type("Hello world")
+def_str(a, "value_of_a")
+def_num ( val_1, +60.66)
+log_info ( "script complete...${a} hello ${val_1} jhg " )# shgjvs vhfk # nbjv
+log_warn ( "this is warning! ${a}"  )
+log_success( "This is success mgs")
+log_error("Error mgs"  )
+
+div (b, 10, 2)
+log_info("Answer: ${b}")
+print("Hello World Print!")
+mgs("Hello World mgs")
+
+#if (1==1):
+#  if (2!=3):
+#   log_info("print value:")
+#  end_if
+#end_if
+
+div(a, 1, 0)

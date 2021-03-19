@@ -1,0 +1,5 @@
+def(val, "hello")
+start_loop(0,5,1):
+mgs("hello\n")
+end_loop
+

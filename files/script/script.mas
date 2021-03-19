@@ -1,0 +1,23 @@
+# comment: this is comment number 01
+click("/home/mamun/Java/Test Program/AutomationToolCreationTest/files/image/fire_fox.png")
+comment: this is comment number 02
+click("/home/mamun/Java/Test Program/AutomationToolCreationTest/files/image/search_box.png")
+type("https://www.messenger.com/t/100008946552088")
+press(ENTER)
+click("/home/mamun/Java/Test Program/AutomationToolCreationTest/files/image/continue_btn.png")
+delay(10000)
+#click("/home/mamun/Java/Test Program/AutomationToolCreationTest/files/image/mgs_box.png")
+#delay(1000)
+#type("<3 <3 <3 <3")
+#click("/home/mamun/Java/Test Program/AutomationToolCreationTest/files/image/send_mgs.png")
+#delay(5000)
+#click("/home/mamun/Java/Test Program/AutomationToolCreationTest/files/image/mgs_box.png")
+#type("<3 <3 <3 <3")
+click("/home/mamun/Java/Test Program/AutomationToolCreationTest/files/image/love_react.png")
+delay(500)
+click("/home/mamun/Java/Test Program/AutomationToolCreationTest/files/image/love_react.png")
+delay(500)
+click("/home/mamun/Java/Test Program/AutomationToolCreationTest/files/image/love_react.png")
+start_loop(0,5,1):
+
+end_loop
