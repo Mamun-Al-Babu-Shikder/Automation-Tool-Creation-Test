@@ -1,11 +1,69 @@
-#if (1==1):
-  print("Yes bro 1==1")
-#end_if
+def_num(a, 5)
+def_num(b, 6)
+def_num(c, 7)
 
+def_str(v1, "Hello")
+def_str(v2, "Helulo")
+
+/*
+if(${a}>${b} && ${a}>${c}):
+    print("a is big")
+else_if(${b}>${a} && ${b}>${c}):
+    print("b is big")
+    print("yes b is big")
+else_if (${v1} == ${v2}):
+    print("c ic big")
+else_if(${b}<${c}):
+print("b is greater")
+if (${v1} == ${v2}):
+    print("c ic big")
+else_if(${b}>${c}):
+       print("c is greater")
+ else_if(8==8):
+ print("8==8")
+
+end_if
+end_if
+
+*/
+if(10>11): # kjdfdvdfvbbt4
+ print("p")
+else_if(20<25):
+ print("k")
+ if(20>19):
+  if(40>30):
+  print("kkkk")
+   if(60<10):
+    print("ooooo")
+   else:
+    print("lll")
+   end_if
+  end_if
+ end_if
+end_if
+
+
+/*
+if(${a}==95):
+  print("yes")
+  if (5==9):
+    print("yes")
+  else_if( 8== 9):
+    print("yes")
+  end_if
+  else:
+  if (8==9):
+  end_if
+end_if
+
+mgs("comment start")
+*/
+
+/*
  def_bool (_va1077          , false   )     # comment: comment
  def_num (a      , -10.0)
     def_str ( str ,"String Value ${_val} meter")
-# comment here.......
+// comment here.......
 def_num(num,45)
  sum(_sf_4, +45.54 , num ) #  kjs
 div (_a, +4, -07.5)
@@ -13,12 +71,12 @@ div (_a, +4, -07.5)
  def_num (_b, -12.8375)
    mod( m ,_b, 2)
 
-# sub(a,a,50)
+sub(a,a,50)
 click("hello")
 type("Hello world")
 def_str(a, "value_of_a")
 def_num ( val_1, +60.66)
-log_info ( "script complete...${a} hello ${val_1} jhg " )# shgjvs vhfk # nbjv
+log_info ( "script complete... -> ${a} hello ${val_1} jhg " )# shgjvs vhfk # nbjv
 log_warn ( "this is warning! ${a}"  )
 log_success( "This is success mgs")
 log_error("Error mgs"  )
@@ -28,10 +86,9 @@ log_info("Answer: ${b}")
 print("Hello World Print!")
 mgs("Hello World mgs")
 
-#if (1==1):
-#  if (2!=3):
-#   log_info("print value:")
-#  end_if
-#end_if
+div(a, 1, 72)
+print("${a}")
 
-div(a, 1, 0)
+print("non skip able")
+*/
+// mgs("comment end")

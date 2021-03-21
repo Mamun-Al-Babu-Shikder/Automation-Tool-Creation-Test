@@ -1,14 +1,16 @@
 package com.mcubes;
 
-
 import com.mcubes.model.Instruction;
+import com.mcubes.model.LineShiftThreshold;
 import org.sikuli.script.Key;
 import org.sikuli.script.Screen;
 
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
-import java.io.IOException;
 import java.util.*;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -18,8 +20,9 @@ public class AutomateMachine {
 
     private static Logger log = Logger.getLogger(AutomateMachine.class.getName());
 
-    private String commentRegex = "(\\s*#.+)?";
-    private String variableRegex = "[a-zA-Z_]\\w*";
+    private String commentRegex = "(\\s*//.*\\s*|\\s*#\\s*.*\\s*)?";
+    private String variableDefRegex = "[a-zA-Z_]\\w*";
+    private String findVariableRegex = "\\$\\{([a-zA-Z0-9_]+)\\}";
     private String numRegex = "[+-]?\\d*\\.?\\d+";
 
     private boolean buildSuccess;
@@ -32,18 +35,28 @@ public class AutomateMachine {
 
     private List<Instruction> instructions;
     private Map<String, String> variables;
+    private Stack<Integer> conditionalStatementThreshold;
+    private Stack<LineShiftThreshold> lineShiftThresholdStack;
+
+    // for shifting line
+    private boolean needToShift;
+    private int shiftWhenLine;
+    private int shiftToLine;
+
 
     // (\s*#.+)? for comment inside line
     private AutomateMachine() {
 
-        screen = new Screen();
-        variables = new HashMap<>();
-        tokens = new HashMap<>();
+        this.screen = new Screen();
+        this.variables = new HashMap<>();
+        this.tokens = new HashMap<>();
+        this.conditionalStatementThreshold = new Stack<>();
+        lineShiftThresholdStack = new Stack<>();
 
         /* value defining function */
         tokens.put("def_bool", "def_bool\\s*\\(\\s*([a-zA-Z_]\\w*)\\s*,\\s*(true|false)\\s*\\)" + commentRegex);
         tokens.put("def_num", "def_num\\s*\\(\\s*([a-zA-Z_]\\w*)\\s*,\\s*(" + numRegex + ")\\s*\\)" +  commentRegex);
-        tokens.put("def_str", "def_str\\s*\\(\\s*([a-zA-Z_]\\w*)\\s*,\\s*\"(.*)\"\\s*\\)(\\s*#.+)?");
+        tokens.put("def_str", "def_str\\s*\\(\\s*([a-zA-Z_]\\w*)\\s*,\\s*(\".*\")\\s*\\)(\\s*#.+)?");
 
         /* mathematical function */
         tokens.put("sum", "sum\\s*\\(\\s*([a-zA-Z_]\\w*)\\s*,\\s*([a-zA-Z_]\\w*|" + numRegex + ")\\s*,\\s*([a-zA-Z_]\\w*|" + numRegex + ")\\s*\\)" + commentRegex);
@@ -61,8 +74,10 @@ public class AutomateMachine {
         tokens.put("log_warn", "log_warn\\s*\\(\\s*\"(.*)\"\\s*\\)" + commentRegex);
 
         /* conditional function */
-        tokens.put("if", "");
-        tokens.put("end_if", "");
+        tokens.put("if", "if\\s*\\(\\s*(.*)\\s*\\)\\s*:\\s*" + commentRegex);
+        tokens.put("else_if", "else_if\\s*\\(\\s*(.*)\\s*\\)\\s*:\\s*" + commentRegex);
+        tokens.put("else", "else\\s*:\\s*" + commentRegex);
+        tokens.put("end_if", "end_if\\s*" + commentRegex);
 
         tokens.put("click", "click\\s*\\(\\s*\"(.*)\"\\s*\\)|click\\s*\\(\\s*\\)" + commentRegex);
         tokens.put("type", "type\\s*\\(\\s*\"(.*)\"\\s*\\)" + commentRegex);
@@ -88,10 +103,22 @@ public class AutomateMachine {
             BufferedReader br = new BufferedReader(reader);
             String line = "";
             int lineNum = 0;
+            boolean skip = false;
             while ((line=br.readLine())!=null) {
                 lineNum++;
                 line = line.trim();
-                if (line.matches("#.*") || line.length() == 0) {
+                if (line.matches("//.*") || (line.startsWith("/*") && line.endsWith("*/")) || line.length() == 0) {
+                    continue;
+                } else if (line.startsWith("/*")) {
+                    skip = true;
+                } else if (line.endsWith("*/") && skip) {
+                    skip = false;
+                    continue;
+                } else if(line.endsWith("*/") && !skip) {
+                    throw new Exception("[ERROR] invalid comment block at line " + lineNum);
+                }
+
+                if (skip) {
                     continue;
                 }
 
@@ -108,11 +135,24 @@ public class AutomateMachine {
                         }
                     }
                 } catch (Exception e) {
-                    System.err.println("[ERROR] Syntax error at line: " + lineNum);
                     buildSuccess = false;
+                    System.err.println("[ERROR] Syntax error at line: " + lineNum);
+                    e.printStackTrace();
                     break;
                 }
             }
+
+            // System.out.println(conditionalStatementThreshold);
+
+            if (skip) {
+                throw new Exception("[ERROR] invalid comment block at line " + lineNum);
+            }
+
+            if (!conditionalStatementThreshold.isEmpty()) {
+                throw new Exception("[ERROR] Syntax error, at line: " + (lineNum + 1)
+                        + " can't find end of the conditional statement");
+            }
+
         } catch (Exception e) {
             System.err.println(e.getMessage());
             buildSuccess = false;
@@ -130,7 +170,7 @@ public class AutomateMachine {
         return null;
     }
 
-    private void createInstruction(int lineNum, String keyword, Matcher matcher) {
+    private void createInstruction(int lineNum, String keyword, Matcher matcher) throws Exception {
         //System.out.println("Keyword: " + keyword);
         if (keyword.equals("def_bool") || keyword.equals("def_num") || keyword.equals("def_str")) {
             instructions.add(new Instruction(lineNum, keyword, matcher.group(1), matcher.group(2)));
@@ -143,15 +183,90 @@ public class AutomateMachine {
                 || keyword.equals("log_success") || keyword.equals("log_error") || keyword.equals("log_warn")) {
             //System.out.println(matcher.group(1));
             instructions.add(new Instruction(lineNum, keyword, matcher.group(1)));
+        } else if (keyword.equals("if")) {
+            pushConditionalStatement(lineNum, keyword);
+        } else if (keyword.equals("else_if")) {
+            if (conditionalStatementThreshold.isEmpty() || instructions.get(conditionalStatementThreshold.peek()).getKeyword().equals("else")) {
+                throw new Exception("[ERROR] Syntax error at line " + lineNum + ", 'if' statement not found");
+            }
+            pushConditionalStatement(lineNum, keyword);
+        } else if (keyword.equals("else")) {
+            if (conditionalStatementThreshold.isEmpty() || instructions.get(conditionalStatementThreshold.peek()).getKeyword().equals("else")) {
+                throw new Exception("[ERROR] Syntax error at line " + lineNum + ", 'if' statement not found");
+            }
+            pushConditionalStatement(lineNum, keyword);
+        } else if (keyword.equals("end_if")) {
+            if (conditionalStatementThreshold.isEmpty()) {
+                throw new Exception("[ERROR] Syntax error at line " + lineNum + ", 'if' statement not found");
+            }
+            int blockEnd = instructions.size();
+            instructions.add(new Instruction(lineNum, keyword));
+            int nextCheckPoint = blockEnd;
+            Instruction instruction = null;
+            while (!conditionalStatementThreshold.isEmpty()) {
+                int index = conditionalStatementThreshold.pop();
+                instruction = instructions.get(index);
+                instruction.setConditionalBlockEnd(blockEnd);
+                instruction.setNextCheckPoint(nextCheckPoint);
+                nextCheckPoint = instruction.getConditionalBlockStart();
+                //System.out.println(instruction);
+                if (instruction.getKeyword().equals("if")) {
+                    break;
+                }
+            }
         }
+
+        /*
+        else if (keyword.equals("else_if")) {
+            System.out.println("GRP: " + matcher.group());
+        } else if (keyword.equals("else")) {
+            System.out.println("GRP: " + matcher.group());
+        } else if (keyword.equals("end_if")) {
+            System.out.println("GRP: " + matcher.group());
+        }
+
+         */
+
+        /*
+        else if (keyword.equals("end_if")) {
+            int blockStart = conditionalStatementThreshold.pop();
+            Instruction instruction = instructions.get(blockStart);
+            int blockEnd = instructions.size();
+            instruction.setConditionalBlockEnd(blockEnd);
+            instructions.add(new Instruction(lineNum, keyword, instruction.getCondition(), instruction.getConditionalBlockStart(), instruction.getConditionalBlockEnd()));
+            System.out.println("STR: " + instruction);
+        }
+
+         */
+    }
+
+    private void pushConditionalStatement(int lineNum, String keyword) {
+        //System.out.println("GRP: " + matcher.group(1));
+        int blockStart = instructions.size();
+        conditionalStatementThreshold.push(blockStart);
+        instructions.add(new Instruction(lineNum, keyword, matcher.group(1), blockStart, 0, 0));
     }
 
     public void run() {
 
-
         try {
-            for (Instruction ins : instructions) {
-                //System.out.println(ins);
+            for (int i = 0; i < instructions.size(); i++) {
+
+                /*
+                if (needToShift && i == shiftWhenLine) {
+                    //System.out.println("need to shift: " + instructions.get(shiftToLine));
+                    i = shiftToLine ;
+                }
+                 */
+                if (!lineShiftThresholdStack.isEmpty() && i == lineShiftThresholdStack.peek().getShiftWhenLine()) {
+                    i = lineShiftThresholdStack.pop().getShiftToLine();
+                }
+
+                Instruction ins = instructions.get(i);
+
+                // System.out.println(i + " => " + ins);
+               // if (i<1000) continue;
+
                 int lineNum = ins.getLine();
 
                 String keyword = ins.getKeyword();
@@ -190,44 +305,79 @@ public class AutomateMachine {
                     if (String.valueOf(ans).endsWith(".0")) {}
                      */
                     variables.put(dist, String.valueOf(ans));
-                    System.out.println("dist: " + dist +", var1: "+var1+", var2: "+var2 + ",  ANS: " + ans);
+                    //System.out.println("dist: " + dist +", var1: "+var1+", var2: "+var2 + ",  ANS: " + ans);
 
                 } else if (keyword.equals("mgs") || keyword.equals("print") || keyword.equals("log_info")
-                        || keyword.equals("log_success") || keyword.equals("log_error") || keyword.equals("log_warn")) {
+                        || keyword.equals("log_success") || keyword.equals("log_error") || keyword.equals("log_warn"))
+                {
                     String message = ins.getParam()[0];
-                    matcher = Pattern.compile("\\$\\{([a-zA-Z0-9_]+)\\}").matcher(message);
-                    while (matcher.find()) {
-                        String variable = matcher.group(1);
-                        if (variables.containsKey(variable)) {
-                            message = message.replace("${" + variable + "}", variables.get(variable));
-                        } else {
-                            throw new Exception("[ERROR] Variable '" + variable + "' not defined at line " + lineNum);
-                        }
+                    message = variableReplaceWithActualValue(lineNum, message);
+                    if (message.startsWith("\"") && message.endsWith("\"")) {
+                        message = message.substring(1, message.length() - 1);
                     }
                     if (keyword.equals("mgs") || keyword.equals("print")) {
                         System.out.println(message);
                     } else {
                         System.out.println("[" + keyword.toUpperCase() + "] " + message);
                     }
+                } else if (keyword.equals("if") || keyword.equals("else_if")) {
+                    String condition = ins.getCondition();
+                    condition = variableReplaceWithActualValue(lineNum, condition);
+                    try {
+                        boolean value = evaluateCondition(condition);
+                        if (value) {
+                            lineShiftThresholdStack.push(new LineShiftThreshold(ins.getNextCheckPoint(),
+                                    ins.getConditionalBlockEnd()));
+                        } else {
+                            i = ins.getNextCheckPoint() - 1;
+                        }
+                    } catch (ScriptException e) {
+                        throw new Exception("[ERROR] Invalid conditional statement at line " + lineNum);
+                    } catch (Exception e) {
+                        throw new Exception("[ERROR] Condition must be true or false value at line " + lineNum);
+                    }
+                } else if (keyword.equals("else")) {
+
                 }
+
+
+
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());
         }
-
-
     }
 
 
+    private String variableReplaceWithActualValue(int lineNum, String line) throws Exception {
+        Matcher matcher = Pattern.compile(findVariableRegex).matcher(line);
+        while (matcher.find()) {
+            String variable = matcher.group(1);
+            if (variables.containsKey(variable)) {
+                String value = variables.get(variable);
+                line = line.replace("${" + variable + "}", value);
+            } else {
+                throw new Exception("[ERROR] Variable '" + variable + "' not defined at line " + lineNum);
+            }
+        }
+        return line;
+    }
+
+    private boolean evaluateCondition(String condition) throws ScriptException {
+        //System.out.println("# con: " + condition);
+        ScriptEngineManager mgr = new ScriptEngineManager();
+        ScriptEngine engine = mgr.getEngineByName("JavaScript");
+        return (boolean) engine.eval(condition);
+    }
+
     private double getDoubleValue(int lineNum, String variable) throws Exception {
         double num = 0;
-        if (variable.matches(variableRegex)) {
+        if (variable.matches(variableDefRegex)) {
             String value = variables.get(variable);
             if (value == null){
                 throw new Exception("[ERROR] Variable '" + variable + "' not defined at line " + lineNum);
             } else {
                 num = Double.parseDouble(value);
-                System.out.println(num);
             }
         } else {
             num = Double.parseDouble(variable);
