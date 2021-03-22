@@ -5,7 +5,7 @@ def_num(c, 7)
 def_str(v1, "Hello")
 def_str(v2, "Helulo")
 
-/*
+
 if(${a}>${b} && ${a}>${c}):
     print("a is big")
 else_if(${b}>${a} && ${b}>${c}):
@@ -25,7 +25,9 @@ else_if(${b}>${c}):
 end_if
 end_if
 
-*/
+
+
+/*
 if(10>11): # kjdfdvdfvbbt4
  print("p")
 else_if(20<25):
@@ -41,7 +43,7 @@ else_if(20<25):
   end_if
  end_if
 end_if
-
+*/
 
 /*
 if(${a}==95):
@@ -91,4 +93,4 @@ print("${a}")
 
 print("non skip able")
 */
-// mgs("comment end")
+

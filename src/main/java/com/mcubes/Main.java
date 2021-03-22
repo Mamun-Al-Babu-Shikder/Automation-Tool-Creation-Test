@@ -1,6 +1,7 @@
 package com.mcubes;
 
 
+import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
 import org.sikuli.script.Match;
 
 import javax.script.ScriptEngine;
@@ -21,68 +22,18 @@ import java.util.Scanner;
 
 
 
-
-/*
-#Project Effectiveness
-project.effectiveness.title=Project Effectiveness
-project.effectiveness.workspace.name={0} name
-project.effectiveness.population.size=Population Size
-project.effectiveness.recall.target=Recall Target
-project.effectiveness.probability.target.recall.calculations=Probability of Target Recall Calculations
-project.effectiveness.max.total.true.positive=Max Total True Positive (if exceeded. recall target missed)
-project.effectiveness.max.false.negative=Max False Negative (if exceeded. recall target missed)
-project.effectiveness.false.and.true.negative=False Negative + True Negative (Not Reviewed @ Elusion Sample)
-project.effectiveness.max.elusion.rate=Max Elusion Rate (% of False Negative in Not Reviewed @ Elusion Sample
-project.effectiveness.binomial.distribution.probability=Probability Recall Target Achieved (Binomial Distribution Probability)
-
-
-cal.project.effectiveness.review.results=Review Results
-cal.project.effectiveness.probability.target=Probability Target Achieved @ Elusion Sample
-cal.project.effectiveness.reviewed.elusion.sample.creation=Reviewed @ Elusion Sample Creation
-cal.project.effectiveness.found.elusion.sample.creation=Found @ Elusion Sample Creation
-cal.project.effectiveness.reviewed.stopping.point=Reviewed @ Stopping Point
-cal.project.effectiveness.found.stopping.point=Found @ Stopping Point
-cal.project.effectiveness.qc.elusion=Elusion
-cal.project.effectiveness.not.reviewed.elusion.sample.creation=Not Reviewed @ Elusion Sample Creation
-cal.project.effectiveness.positive.doc.sample={0} Docs in sample
-cal.project.effectiveness.positive.documents.unreviewed=How many {0} documents in UNREVIEWED @ Elusion Sample Creation?*
-cal.project.effectiveness.positive.documents.total.population=How many {0} documents are there in total population?
-cal.project.effectiveness.estimated.recall.elusion.creation=Estimated Recall @ Elusion Creation
-cal.project.effectiveness.estimated.recall.stopping.point=Estimated Recall @ Stopping Point
-cal.project.effectiveness.lower.recall.estimate.formula=Lower Recall Estimate = Found / (Found @ Elusion Sample Creation + Upper Bound Elusion
-cal.project.effectiveness.recall.estimate.formula=Recall Estimate = Found / (Found @ Elusion Sample Creation + Point Elusion
-cal.project.effectiveness.upper.recall.estimate.formula=Upper Recall Estimate = Found / (Found @ Elusion Sample Creation + Lower Bound Elusion
-cal.project.effectiveness.found.qc.point=Found @ QC Point
-
-sal.project.effectiveness.probability.target=Probability Target Achieved
-sal.project.effectiveness.prediction.precision=Prediction Precision
-sal.project.effectiveness.predicted.positive=Predicted {0}
-sal.project.effectiveness.precision.sample.size=Precision Sample Size
-sal.project.effectiveness.positive.docs.sample={0} Docs in sample
-sal.project.effectiveness.positive.documents.prediction=How many {0} documents are in our prediction?*
-sal.project.effectiveness.prediction.elusion=Prediction Elusion
-sal.project.effectiveness.elusion.sample.size=Elusion Sample Size
-sal.project.effectiveness.positive.documents.not.prediction=How many {0} documents are NOT in our prediction?*
-sal.project.effectiveness.estimated.recall=Estimated Recall
-sal.project.effectiveness.lower.recall.estimate.formula=Lower Recall Estimate=Lower Bound Precision / (Point Precision + Point Elusion)
-sal.project.effectiveness.recall.estimate.formula=Recall Estimate=Point Precision / (Point Precision + Point Elusion)
-sal.project.effectiveness.upper.recall.estimate.formula=Upper Recall Estimate=Upper Bound Precision / (Point Precision + Point Elusion
-sal.project.effectiveness.estimated.true.positives.prediction=Estimated True Positives in our prediction
- */
-
-
-
-
-
 public class Main {
 
     static List<String> sb = new  ArrayList();
 
     public static void main(String[] args) throws Exception {
 
-        AutomateMachine machine = new AutomateMachine("files/script/test.txt");
+        AutomateMachine machine = new AutomateMachine("files/script/test.mas");
         machine.buildAndRun();
-        //machine.build();
+        // machine.build();
+
+        RSyntaxTextArea textArea = new RSyntaxTextArea();
+
 
 
         /*
@@ -230,7 +181,7 @@ public class Main {
     }
     public static void main(String[] args) {
 // TODO Auto-generated method stub
-        new LexicalAnalysis("files/script/test.txt");
+        new LexicalAnalysis("files/script/test.mas");
     }
 
 }

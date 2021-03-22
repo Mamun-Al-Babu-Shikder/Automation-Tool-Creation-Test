@@ -36,6 +36,7 @@ public class AutomateMachine {
     private List<Instruction> instructions;
     private Map<String, String> variables;
     private Stack<Integer> conditionalStatementThreshold;
+    private Stack<Integer> loopStatementThreshold;
     private Stack<LineShiftThreshold> lineShiftThresholdStack;
 
     // for shifting line
@@ -51,7 +52,8 @@ public class AutomateMachine {
         this.variables = new HashMap<>();
         this.tokens = new HashMap<>();
         this.conditionalStatementThreshold = new Stack<>();
-        lineShiftThresholdStack = new Stack<>();
+        this.loopStatementThreshold = new Stack<>();
+        this.lineShiftThresholdStack = new Stack<>();
 
         /* value defining function */
         tokens.put("def_bool", "def_bool\\s*\\(\\s*([a-zA-Z_]\\w*)\\s*,\\s*(true|false)\\s*\\)" + commentRegex);
@@ -79,12 +81,15 @@ public class AutomateMachine {
         tokens.put("else", "else\\s*:\\s*" + commentRegex);
         tokens.put("end_if", "end_if\\s*" + commentRegex);
 
+        /* loop function */
+        tokens.put("loop", "loop\\s*\\(\\s*(.*)\\s*\\)\\s*:\\s*" + commentRegex);
+        tokens.put("end_loop", "end_loop\\s*" + commentRegex);
+
+        /* event function */
         tokens.put("click", "click\\s*\\(\\s*\"(.*)\"\\s*\\)|click\\s*\\(\\s*\\)" + commentRegex);
         tokens.put("type", "type\\s*\\(\\s*\"(.*)\"\\s*\\)" + commentRegex);
         tokens.put("press", "press\\s*\\(\\s*(.*)\\s*\\)" + commentRegex);
-        tokens.put("delay", "delay\\s*\\(\\s*(\\d+)\\s*\\)" + commentRegex);
-        tokens.put("start_loop", "start_loop\\s*\\(\\s*\\d{1,8}\\s*,\\s*\\d{1,8}\\s*,\\s*\\d{1,6}\\s*\\):" + commentRegex);
-
+        tokens.put("delay", "delay\\s*\\(\\s*(\\d{1,15})\\s*\\)" + commentRegex);
         keys = new HashMap<>();
         keys.put("ENTER", Key.ENTER);
     }
@@ -107,7 +112,7 @@ public class AutomateMachine {
             while ((line=br.readLine())!=null) {
                 lineNum++;
                 line = line.trim();
-                if (line.matches("//.*") || (line.startsWith("/*") && line.endsWith("*/")) || line.length() == 0) {
+                if (line.matches("//|#.*") || (line.startsWith("/*") && line.endsWith("*/")) || line.length() == 0) {
                     continue;
                 } else if (line.startsWith("/*")) {
                     skip = true;
@@ -150,7 +155,12 @@ public class AutomateMachine {
 
             if (!conditionalStatementThreshold.isEmpty()) {
                 throw new Exception("[ERROR] Syntax error, at line: " + (lineNum + 1)
-                        + " can't find end of the conditional statement");
+                        + " can't find the end of the conditional statement");
+            }
+
+            if (!loopStatementThreshold.isEmpty()) {
+                throw new Exception("[ERROR] Syntax error, at line: " + (lineNum + 1)
+                        + " can't find the end of the loop statement");
             }
 
         } catch (Exception e) {
@@ -202,18 +212,35 @@ public class AutomateMachine {
             int blockEnd = instructions.size();
             instructions.add(new Instruction(lineNum, keyword));
             int nextCheckPoint = blockEnd;
-            Instruction instruction = null;
             while (!conditionalStatementThreshold.isEmpty()) {
                 int index = conditionalStatementThreshold.pop();
-                instruction = instructions.get(index);
+                Instruction instruction = instructions.get(index);
                 instruction.setConditionalBlockEnd(blockEnd);
                 instruction.setNextCheckPoint(nextCheckPoint);
                 nextCheckPoint = instruction.getConditionalBlockStart();
-                //System.out.println(instruction);
                 if (instruction.getKeyword().equals("if")) {
                     break;
                 }
             }
+        } else if (keyword.equals("loop")) {
+            pushLoopStatement(lineNum, keyword);
+        } else if (keyword.equals("end_loop")) {
+            if (loopStatementThreshold.isEmpty()) {
+                throw new Exception("[ERROR] Syntax error at line " + lineNum + ", 'loop' statement not found");
+            }
+            int blockEnd = instructions.size();
+            int index = loopStatementThreshold.pop();
+            Instruction instruction = instructions.get(index);
+            instruction.setConditionalBlockEnd(blockEnd);
+            instructions.add(new Instruction(lineNum, keyword, null, instruction.getConditionalBlockStart(),
+                    0, 0));
+        }
+
+
+
+        else if (keyword.equals("click") || keyword.equals("type") || keyword.equals("press")
+                || keyword.equals("delay")) {
+            instructions.add(new Instruction(lineNum, keyword, matcher.group(1)));
         }
 
         /*
@@ -224,7 +251,6 @@ public class AutomateMachine {
         } else if (keyword.equals("end_if")) {
             System.out.println("GRP: " + matcher.group());
         }
-
          */
 
         /*
@@ -241,9 +267,15 @@ public class AutomateMachine {
     }
 
     private void pushConditionalStatement(int lineNum, String keyword) {
-        //System.out.println("GRP: " + matcher.group(1));
         int blockStart = instructions.size();
         conditionalStatementThreshold.push(blockStart);
+        instructions.add(new Instruction(lineNum, keyword, matcher.group(1), blockStart, 0, 0));
+    }
+
+    private void pushLoopStatement(int lineNum, String keyword) {
+        //System.out.println("GRP: " + matcher.group(1));
+        int blockStart = instructions.size();
+        loopStatementThreshold.push(blockStart);
         instructions.add(new Instruction(lineNum, keyword, matcher.group(1), blockStart, 0, 0));
     }
 
@@ -252,23 +284,12 @@ public class AutomateMachine {
         try {
             for (int i = 0; i < instructions.size(); i++) {
 
-                /*
-                if (needToShift && i == shiftWhenLine) {
-                    //System.out.println("need to shift: " + instructions.get(shiftToLine));
-                    i = shiftToLine ;
-                }
-                 */
                 if (!lineShiftThresholdStack.isEmpty() && i == lineShiftThresholdStack.peek().getShiftWhenLine()) {
                     i = lineShiftThresholdStack.pop().getShiftToLine();
                 }
 
                 Instruction ins = instructions.get(i);
-
-                // System.out.println(i + " => " + ins);
-               // if (i<1000) continue;
-
                 int lineNum = ins.getLine();
-
                 String keyword = ins.getKeyword();
 
                 if (keyword.equals("def_bool") || keyword.equals("def_num") || keyword.equals("def_str")) {
@@ -300,13 +321,11 @@ public class AutomateMachine {
                             break;
                     }
                     String dist = ins.getParam()[0];
-                    /*
-                    String var3 = String.valueOf(ans);
-                    if (String.valueOf(ans).endsWith(".0")) {}
-                     */
-                    variables.put(dist, String.valueOf(ans));
-                    //System.out.println("dist: " + dist +", var1: "+var1+", var2: "+var2 + ",  ANS: " + ans);
-
+                    if (!ins.getParam()[1].contains(".") && !ins.getParam()[2].contains(".") && !keyword.equals("div")){
+                        variables.put(dist, String.valueOf((long)ans));
+                    } else {
+                        variables.put(dist, String.valueOf(ans));
+                    }
                 } else if (keyword.equals("mgs") || keyword.equals("print") || keyword.equals("log_info")
                         || keyword.equals("log_success") || keyword.equals("log_error") || keyword.equals("log_warn"))
                 {
@@ -338,8 +357,38 @@ public class AutomateMachine {
                     }
                 } else if (keyword.equals("else")) {
 
+                } else if (keyword.equals("loop")) {
+                    String condition = ins.getCondition();
+                    condition = variableReplaceWithActualValue(lineNum, condition);
+                    try {
+                        boolean value = evaluateCondition(condition);
+                        if (value) {
+                            continue;
+                        } else {
+                            i = ins.getConditionalBlockEnd();
+                        }
+                    } catch (ScriptException e) {
+                        throw new Exception("[ERROR] Invalid loop statement at line " + lineNum);
+                    } catch (Exception e) {
+                        throw new Exception("[ERROR] Condition must be true or false value at line " + lineNum);
+                    }
+                } else if (keyword.equals("end_loop")) {
+                    i = ins.getConditionalBlockStart() - 1;
                 }
 
+                else if (keyword.equals("click")) {
+                    click(lineNum, ins.getParam()[0]);
+                } else if (keyword.equals("type")) {
+                    type(lineNum, ins.getParam()[0]);
+                } else if (keyword.equals("press")) {
+                    press(lineNum, ins.getParam()[0]);
+                } else if (keyword.equals("delay")) {
+                    try {
+                        Thread.sleep(Long.parseLong(ins.getParam()[0]));
+                    }catch (Exception e) {
+                        throw new Exception("[ERROR] Can't delay at line " + lineNum);
+                    }
+                }
 
 
             }
@@ -361,6 +410,13 @@ public class AutomateMachine {
             }
         }
         return line;
+    }
+
+    private String removeDoubleQuotation (String value) {
+        if (value != null && (value.startsWith("\"") && value.endsWith("\""))) {
+            return value.substring(1, value.length() - 1);
+        }
+        return value;
     }
 
     private boolean evaluateCondition(String condition) throws ScriptException {
@@ -415,7 +471,6 @@ public class AutomateMachine {
 
     private boolean isFileExist(String path) {
         File file = new File(path);
-        System.out.println(file.exists());
         return file.exists();
     }
 
@@ -427,59 +482,42 @@ public class AutomateMachine {
         }
     }
 
-    private void click(String line) {
-        try {
-            matcher = Pattern.compile(tokens.get("click")).matcher(line);
-            if (matcher.matches()) {
-                String value = matcher.group(1);
-                if (value == null)
-                    screen.click();
-                else if (value != null && isFileExist(value)) {
-                    screen.click(value);
-                }else {
-                    System.err.printf("Image file not found at '%s'\n", value);
-                }
-            } else {
-                System.out.println("Syntax error...");
-            }
-        }catch (Exception e) {
-            e.printStackTrace();
+
+    private void click(int lineNum, String value) throws Exception {
+        if (value == null) {
+            screen.click();
+            return;
+        }
+        value = variableReplaceWithActualValue(lineNum, value);
+        value = removeDoubleQuotation(value);
+        if (isFileExist(value)){
+            screen.click(value);
+        } else {
+            throw new Exception("[ERROR] Image file '" + value + "' not found at line " + lineNum);
         }
     }
+
+    private void type(int lineNum, String value) throws Exception {
+        try {
+            value = variableReplaceWithActualValue(lineNum, value);
+            value = removeDoubleQuotation(value);
+            screen.type(value);
+        }catch (Exception e) {
+            throw new Exception("[ERROR] Can't type value '"+value+"' at line " + lineNum);
+        }
+    }
+
 
 
     private void doubleClick(String line) {
 
     }
 
-    private void type(String line) {
-        try {
-            matcher = Pattern.compile(tokens.get("type")).matcher(line);
-            if (matcher.matches()) {
-               String value = matcher.group(1);
-               screen.type(value);
-            } else {
-                System.out.println("Syntax error...");
-            }
-        }catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void press(String line) {
-        try {
-            matcher = Pattern.compile(tokens.get("press")).matcher(line);
-            if (matcher.matches()) {
-                String value = matcher.group(1);
-                if (keys.containsKey(value))
-                    screen.type(keys.get(value));
-                else
-                    System.out.println("Press option not found!");
-            } else {
-                System.out.println("Syntax error...");
-            }
-        }catch (Exception e) {
-            e.printStackTrace();
+    private void press(int lineNum, String key) throws Exception {
+        if (keys.containsKey(key)) {
+            screen.type(keys.get(key));
+        } else {
+            throw new Exception("[ERROR] Invalid key or can't press key '' at line " + lineNum);
         }
     }
 

@@ -1,5 +1,31 @@
-def(val, "hello")
-start_loop(0,5,1):
-mgs("hello\n")
+def_num(w, 7.8)
+sum(v, 1.4, w)
+def_bool(true, false)
+print("${true}")
+/* print("${v}") */
+def_num(a, 1)
+loop(${a} <= 15):
+   if (${a} % 2 == 0):
+     print("even: ${a}")
+   else:
+     print("odd: ${a}")
+   end_if
+   sum(a, a, 1)
+/*
+  print("hello : ${a}")
+   if (${a} == 3):
+     mgs("mid point")
+   end_if
+  sum(a, a, true)
+  def_num(b, 1)
+  loop (${b} <= 10):
+    print("hi : ${b}")
+    delay(1000)
+    sum(b, b, 1)
+  end_loop
+*/
 end_loop
 
+def_str(fire_fox, "/home/mamun/Java/Test Program/AutomationToolCreationTest/files/image/fire_fox.png")
+# click("")
+log_success("SUCCESSFULLY JOB DONE")
